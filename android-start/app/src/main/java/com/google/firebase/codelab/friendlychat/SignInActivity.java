@@ -133,9 +133,13 @@ public class SignInActivity extends AppCompatActivity implements
                         // the auth state listener will be notified and logic to handle the
                         // signed in user can be handled in the listener.
                         if (!task.isSuccessful()) {
-                            Log.w(TAG, "signInWithCredential", task.getException());
+                            Log.v("taagboi", "signInWithCredentia" +
+                                    "startActivity(new Intent(SignInActivity.this, MainActivity.class));\n" +
+                                    "                            finish();l", task.getException());
                             Toast.makeText(SignInActivity.this, "Authentication failed.",
                                     Toast.LENGTH_LONG).show();
+//                            startActivity(new Intent(SignInActivity.this, MainActivity.class));
+//                            finish();
                         } else {
                             startActivity(new Intent(SignInActivity.this, MainActivity.class));
                             finish();
