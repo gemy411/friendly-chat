@@ -39,6 +39,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.analytics.FirebaseAnalytics;
 import com.google.firebase.appindexing.Action;
 import com.google.firebase.appindexing.FirebaseAppIndex;
 import com.google.firebase.appindexing.FirebaseUserActions;
@@ -126,6 +127,7 @@ public class MainActivity extends AppCompatActivity
             mFirebaseAdapter;
     // Firebase instance variables
     private FirebaseRemoteConfig mFirebaseRemoteConfig;
+    private FirebaseAnalytics mFirebaseAnalytics;
 
     private void configRemoteMsgLength() {
         // Initialize Firebase Remote Config.
@@ -216,7 +218,7 @@ public class MainActivity extends AppCompatActivity
                 mPhotoUrl = mFirebaseUser.getPhotoUrl().toString();
             }
         }
-        
+
         initiateGoogleApiClient();
 
 
@@ -444,7 +446,16 @@ public class MainActivity extends AppCompatActivity
                 // Sending failed or it was canceled, show failure message to the user
                 Log.d(TAG, "Failed to send invitation.");
             }
+        }else {
+            Bundle payload = new Bundle();
+            payload.putString(FirebaseAnalytics.Param.VALUE, "not sent");
+            mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.SHARE,
+                    payload);
+            // Sending failed or it was canceled, show failure message to
+            // the user
+            Log.d(TAG, "Failed to send invitation.");
         }
+
     }
 
     private void putImageInStorage(StorageReference storageReference, Uri uri, final String key) {
