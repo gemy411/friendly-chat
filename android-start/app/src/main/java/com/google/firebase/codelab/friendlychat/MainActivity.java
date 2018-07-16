@@ -31,6 +31,7 @@ import com.bumptech.glide.Glide;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.firebase.ui.database.SnapshotParser;
+import com.google.android.gms.appinvite.AppInviteInvitation;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -60,7 +61,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import de.hdodenhof.circleimageview.CircleImageView;
-        /**
+
+/**
  * Copyright Google Inc. All Rights Reserved.
  * <p/>
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +75,8 @@ import de.hdodenhof.circleimageview.CircleImageView;
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License. **/
+ * limitations under the License.
+ **/
 
 
 public class MainActivity extends AppCompatActivity
@@ -121,10 +124,10 @@ public class MainActivity extends AppCompatActivity
     private DatabaseReference mFirebaseDatabaseReference;
     private FirebaseRecyclerAdapter<FriendlyMessage, MessageViewHolder>
             mFirebaseAdapter;
-            // Firebase instance variables
-            private FirebaseRemoteConfig mFirebaseRemoteConfig;
+    // Firebase instance variables
+    private FirebaseRemoteConfig mFirebaseRemoteConfig;
 
-    private void configRemoteMsgLength (){
+    private void configRemoteMsgLength() {
         // Initialize Firebase Remote Config.
         mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
 
@@ -146,50 +149,52 @@ public class MainActivity extends AppCompatActivity
         // Fetch remote config.
         fetchConfig();
     }
-            // Fetch the config to determine the allowed length of messages.
+
+    // Fetch the config to determine the allowed length of messages.
     public void fetchConfig() {
-                long cacheExpiration = 3600; // 1 hour in seconds
-                // If developer mode is enabled reduce cacheExpiration to 0 so that
-                // each fetch goes to the server. This should not be used in release
-                // builds.
-                if (mFirebaseRemoteConfig.getInfo().getConfigSettings()
-                        .isDeveloperModeEnabled()) {
-                    cacheExpiration = 0;
-                }
-                mFirebaseRemoteConfig.fetch(cacheExpiration)
-                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void aVoid) {
-                                // Make the fetched config available via
-                                // FirebaseRemoteConfig get<type> calls.
-                                mFirebaseRemoteConfig.activateFetched();
-                                applyRetrievedLengthLimit();
-                            }
-                        })
-                        .addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception e) {
-                                // There has been an error fetching the config
-                                Log.w(TAG, "Error fetching config: " +
-                                        e.getMessage());
-                                applyRetrievedLengthLimit();
-                            }
-                        });
-            }
+        long cacheExpiration = 3600; // 1 hour in seconds
+        // If developer mode is enabled reduce cacheExpiration to 0 so that
+        // each fetch goes to the server. This should not be used in release
+        // builds.
+        if (mFirebaseRemoteConfig.getInfo().getConfigSettings()
+                .isDeveloperModeEnabled()) {
+            cacheExpiration = 0;
+        }
+        mFirebaseRemoteConfig.fetch(cacheExpiration)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        // Make the fetched config available via
+                        // FirebaseRemoteConfig get<type> calls.
+                        mFirebaseRemoteConfig.activateFetched();
+                        applyRetrievedLengthLimit();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        // There has been an error fetching the config
+                        Log.w(TAG, "Error fetching config: " +
+                                e.getMessage());
+                        applyRetrievedLengthLimit();
+                    }
+                });
+    }
 
 
-            /**
-             * Apply retrieved length limit to edit text field.
-             * This result may be fresh from the server or it may be from cached
-             * values.
-             */
+    /**
+     * Apply retrieved length limit to edit text field.
+     * This result may be fresh from the server or it may be from cached
+     * values.
+     */
     private void applyRetrievedLengthLimit() {
-                Long friendly_msg_length =
-                        mFirebaseRemoteConfig.getLong("friendly_msg_length");
-                mMessageEditText.setFilters(new InputFilter[]{new
-                        InputFilter.LengthFilter(friendly_msg_length.intValue())});
-                Log.d(TAG, "FML is: " + friendly_msg_length);
-            }
+        Long friendly_msg_length =
+                mFirebaseRemoteConfig.getLong("friendly_msg_length");
+        mMessageEditText.setFilters(new InputFilter[]{new
+                InputFilter.LengthFilter(friendly_msg_length.intValue())});
+        Log.d(TAG, "FML is: " + friendly_msg_length);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -211,11 +216,9 @@ public class MainActivity extends AppCompatActivity
                 mPhotoUrl = mFirebaseUser.getPhotoUrl().toString();
             }
         }
+        
+        initiateGoogleApiClient();
 
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .enableAutoManage(this /* FragmentActivity */, this /* OnConnectionFailedListener */)
-                .addApi(Auth.GOOGLE_SIGN_IN_API)
-                .build();
 
         // Initialize ProgressBar and RecyclerView.
         mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
@@ -378,8 +381,25 @@ public class MainActivity extends AppCompatActivity
 
             }
         });
-    configRemoteMsgLength();
+        configRemoteMsgLength();
+        sendInvitation();
     }
+
+    private void initiateGoogleApiClient() {
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .enableAutoManage(this, this)
+                .addApi(Auth.GOOGLE_SIGN_IN_API)
+                .build();
+    }
+
+    private void sendInvitation() {
+        Intent intent = new AppInviteInvitation.IntentBuilder(getString(R.string.invitation_title))
+                .setMessage(getString(R.string.invitation_message))
+                .setCallToActionText(getString(R.string.invitation_cta))
+                .build();
+        startActivityForResult(intent, REQUEST_INVITE);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -415,8 +435,18 @@ public class MainActivity extends AppCompatActivity
                             });
                 }
             }
+        } else if (requestCode == REQUEST_INVITE) {
+            if (resultCode == RESULT_OK) {
+                // Check how many invitations were sent and log.
+                String[] ids = AppInviteInvitation.getInvitationIds(resultCode, data);
+                Log.d(TAG, "Invitations sent: " + ids.length);
+            } else {
+                // Sending failed or it was canceled, show failure message to the user
+                Log.d(TAG, "Failed to send invitation.");
+            }
         }
     }
+
     private void putImageInStorage(StorageReference storageReference, Uri uri, final String key) {
         storageReference.putFile(uri).addOnCompleteListener(MainActivity.this,
                 new OnCompleteListener<UploadTask.TaskSnapshot>() {
@@ -454,6 +484,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onPause() {
         mFirebaseAdapter.stopListening();
+        mGoogleApiClient.stopAutoManage(this);
         super.onPause();
 
     }
@@ -490,10 +521,14 @@ public class MainActivity extends AppCompatActivity
             case R.id.fresh_config_menu:
                 fetchConfig();
                 return true;
+            case R.id.invite_menu:
+                sendInvitation();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
     }
+
 
     private Indexable getMessageIndexable(FriendlyMessage friendlyMessage) {
         PersonBuilder sender = Indexables.personBuilder()

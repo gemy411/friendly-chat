@@ -55,7 +55,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-auth:15.0.0'
     // Firebase UI
     implementation 'com.firebaseui:firebase-ui-database:3.3.1'
-
+    implementation 'com.google.android.gms:play-services-appinvite:15.0.0'
     //Crashlytics
     implementation 'com.crashlytics.sdk.android:crashlytics:2.9.2'
 
