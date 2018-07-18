@@ -31,6 +31,8 @@ import com.bumptech.glide.Glide;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.firebase.ui.database.SnapshotParser;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.AdView;
 import com.google.android.gms.appinvite.AppInviteInvitation;
 import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.common.ConnectionResult;
@@ -128,6 +130,7 @@ public class MainActivity extends AppCompatActivity
     // Firebase instance variables
     private FirebaseRemoteConfig mFirebaseRemoteConfig;
     private FirebaseAnalytics mFirebaseAnalytics;
+    private AdView mAdView;
 
     private void configRemoteMsgLength() {
         // Initialize Firebase Remote Config.
@@ -384,7 +387,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
         configRemoteMsgLength();
-        sendInvitation();
+        setupAdView();
     }
 
     private void initiateGoogleApiClient() {
@@ -400,6 +403,12 @@ public class MainActivity extends AppCompatActivity
                 .setCallToActionText(getString(R.string.invitation_cta))
                 .build();
         startActivityForResult(intent, REQUEST_INVITE);
+    }
+
+    private void setupAdView() {
+        mAdView = (AdView) findViewById(R.id.adView);
+        AdRequest adRequest = new AdRequest.Builder().build();
+        mAdView.loadAd(adRequest);
     }
 
     @Override
@@ -494,6 +503,9 @@ public class MainActivity extends AppCompatActivity
 
     @Override
     public void onPause() {
+        if (mAdView != null) {
+            mAdView.pause();
+        }
         mFirebaseAdapter.stopListening();
         mGoogleApiClient.stopAutoManage(this);
         super.onPause();
@@ -504,12 +516,20 @@ public class MainActivity extends AppCompatActivity
     public void onResume() {
         super.onResume();
         mFirebaseAdapter.startListening();
+        if (mAdView != null) {
+            mAdView.resume();
+        }
+
 
     }
 
     @Override
     public void onDestroy() {
+        if (mAdView != null) {
+            mAdView.destroy();
+        }
         super.onDestroy();
+
     }
 
     @Override
