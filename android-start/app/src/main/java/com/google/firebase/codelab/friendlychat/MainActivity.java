@@ -2,6 +2,7 @@ package com.google.firebase.codelab.friendlychat;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -120,6 +121,7 @@ public class MainActivity extends AppCompatActivity
     private ProgressBar mProgressBar;
     private EditText mMessageEditText;
     private ImageView mAddMessageImageView;
+    private ImageView mRecordAudioView;
 
     // Firebase instance variables
     private FirebaseAuth mFirebaseAuth;
@@ -131,7 +133,8 @@ public class MainActivity extends AppCompatActivity
     private FirebaseRemoteConfig mFirebaseRemoteConfig;
     private FirebaseAnalytics mFirebaseAnalytics;
     private AdView mAdView;
-
+    // Record Audio Variables
+    private MediaRecorder mediaRecorder;
     private void configRemoteMsgLength() {
         // Initialize Firebase Remote Config.
         mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
@@ -219,6 +222,85 @@ public class MainActivity extends AppCompatActivity
         mLinearLayoutManager.setStackFromEnd(true);
         mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
 
+        setupDataBaseReference();
+
+
+
+        mFirebaseAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+            @Override
+            public void onItemRangeInserted(int positionStart, int itemCount) {
+                super.onItemRangeInserted(positionStart, itemCount);
+                int friendlyMessageCount = mFirebaseAdapter.getItemCount();
+                int lastVisiblePosition =
+                        mLinearLayoutManager.findLastCompletelyVisibleItemPosition();
+                // If the recycler view is initially being loaded or the
+                // user is at the bottom of the list, scroll to the bottom
+                // of the list to show the newly added message.
+                if (lastVisiblePosition == -1 ||
+                        (positionStart >= (friendlyMessageCount - 1) &&
+                                lastVisiblePosition == (positionStart - 1))) {
+                    mMessageRecyclerView.scrollToPosition(positionStart);
+                }
+            }
+        });
+
+        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
+
+        mMessageEditText = (EditText) findViewById(R.id.messageEditText);
+        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
+                .getInt(CodelabPreferences.FRIENDLY_MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
+        mMessageEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                if (charSequence.toString().trim().length() > 0) {
+                    mSendButton.setEnabled(true);
+                } else {
+                    mSendButton.setEnabled(false);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+            }
+        });
+
+        mSendButton = (Button) findViewById(R.id.sendButton);
+        mSendButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                FriendlyMessage friendlyMessage = new
+                        FriendlyMessage(mMessageEditText.getText().toString(),
+                        mUsername,
+                        mPhotoUrl,
+                        null /* no image */);
+                mFirebaseDatabaseReference.child(MESSAGES_CHILD)
+                        .push().setValue(friendlyMessage);
+                mMessageEditText.setText("");
+
+            }
+        });
+
+        mAddMessageImageView = findViewById(R.id.addMessageImageView);
+        mRecordAudioView = findViewById(R.id.recordAudioView);
+        mAddMessageImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("image/*");
+                startActivityForResult(intent, REQUEST_IMAGE);
+
+            }
+        });
+        configRemoteMsgLength();
+        setupAdView();
+    }
+
+    private void setupDataBaseReference() {
         // New child entries
         mFirebaseDatabaseReference = FirebaseDatabase.getInstance().getReference();
         SnapshotParser<FriendlyMessage> parser = new SnapshotParser<FriendlyMessage>() {
@@ -303,78 +385,6 @@ public class MainActivity extends AppCompatActivity
 
             }
         };
-
-        mFirebaseAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
-            @Override
-            public void onItemRangeInserted(int positionStart, int itemCount) {
-                super.onItemRangeInserted(positionStart, itemCount);
-                int friendlyMessageCount = mFirebaseAdapter.getItemCount();
-                int lastVisiblePosition =
-                        mLinearLayoutManager.findLastCompletelyVisibleItemPosition();
-                // If the recycler view is initially being loaded or the
-                // user is at the bottom of the list, scroll to the bottom
-                // of the list to show the newly added message.
-                if (lastVisiblePosition == -1 ||
-                        (positionStart >= (friendlyMessageCount - 1) &&
-                                lastVisiblePosition == (positionStart - 1))) {
-                    mMessageRecyclerView.scrollToPosition(positionStart);
-                }
-            }
-        });
-
-        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
-
-        mMessageEditText = (EditText) findViewById(R.id.messageEditText);
-        mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
-                .getInt(CodelabPreferences.FRIENDLY_MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
-        mMessageEditText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-                if (charSequence.toString().trim().length() > 0) {
-                    mSendButton.setEnabled(true);
-                } else {
-                    mSendButton.setEnabled(false);
-                }
-            }
-
-            @Override
-            public void afterTextChanged(Editable editable) {
-            }
-        });
-
-        mSendButton = (Button) findViewById(R.id.sendButton);
-        mSendButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                FriendlyMessage friendlyMessage = new
-                        FriendlyMessage(mMessageEditText.getText().toString(),
-                        mUsername,
-                        mPhotoUrl,
-                        null /* no image */);
-                mFirebaseDatabaseReference.child(MESSAGES_CHILD)
-                        .push().setValue(friendlyMessage);
-                mMessageEditText.setText("");
-
-            }
-        });
-
-        mAddMessageImageView = (ImageView) findViewById(R.id.addMessageImageView);
-        mAddMessageImageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("image/*");
-                startActivityForResult(intent, REQUEST_IMAGE);
-
-            }
-        });
-        configRemoteMsgLength();
-        setupAdView();
     }
 
     private void initializeFireBaseAuth() {
@@ -415,16 +425,21 @@ public class MainActivity extends AppCompatActivity
         mAdView.loadAd(adRequest);
     }
 
+    private void startRecording() {
+        mediaRecorder = new MediaRecorder();
+//        mediaRecorder.setAudioSource();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Log.d(TAG, "onActivityResult: requestCode=" + requestCode + ", resultCode=" + resultCode);
+        Log.d("thisisatag", "onActivityResult: requestCode=" + requestCode + ", resultCode=" + resultCode);
 
         if (requestCode == REQUEST_IMAGE) {
             if (resultCode == RESULT_OK) {
                 if (data != null) {
                     final Uri uri = data.getData();
-                    Log.d(TAG, "Uri: " + uri.toString());
+                    Log.d("thisisatag", "Uri: " + uri.toString());
 
                     FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, mPhotoUrl,
                             LOADING_IMAGE_URL);
@@ -443,7 +458,7 @@ public class MainActivity extends AppCompatActivity
 
                                         putImageInStorage(storageReference, uri, key);
                                     } else {
-                                        Log.w(TAG, "Unable to write message to database.",
+                                        Log.w("thisisatag", "Unable to write message to database.",
                                                 databaseError.toException());
                                     }
                                 }
@@ -472,6 +487,7 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void putImageInStorage(StorageReference storageReference, Uri uri, final String key) {
+        Log.v("thisisatag", "putImageInStorage is called");
         storageReference.putFile(uri).addOnCompleteListener(MainActivity.this,
                 new OnCompleteListener<UploadTask.TaskSnapshot>() {
                     @Override
@@ -483,8 +499,9 @@ public class MainActivity extends AppCompatActivity
                                                     .toString());
                             mFirebaseDatabaseReference.child(MESSAGES_CHILD).child(key)
                                     .setValue(friendlyMessage);
+                            Log.v("thisisatag", "image upload succeded");
                         } else {
-                            Log.w(TAG, "Image upload task was not successful.",
+                            Log.v("thisisatag", "Image upload task was not successful.",
                                     task.getException());
                         }
                     }
