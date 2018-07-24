@@ -1,10 +1,14 @@
 package com.google.firebase.codelab.friendlychat;
 
+import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
@@ -19,6 +23,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -61,6 +66,7 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -121,7 +127,7 @@ public class MainActivity extends AppCompatActivity
     private ProgressBar mProgressBar;
     private EditText mMessageEditText;
     private ImageView mAddMessageImageView;
-    private ImageView mRecordAudioView;
+    private ImageView recordAudioView;
 
     // Firebase instance variables
     private FirebaseAuth mFirebaseAuth;
@@ -135,6 +141,10 @@ public class MainActivity extends AppCompatActivity
     private AdView mAdView;
     // Record Audio Variables
     private MediaRecorder mediaRecorder;
+    private String fileName = null;
+    private Vibrator vibrator;
+    private boolean workInProgress;
+
     private void configRemoteMsgLength() {
         // Initialize Firebase Remote Config.
         mFirebaseRemoteConfig = FirebaseRemoteConfig.getInstance();
@@ -157,7 +167,6 @@ public class MainActivity extends AppCompatActivity
         // Fetch remote config.
         fetchConfig();
     }
-
     // Fetch the config to determine the allowed length of messages.
     public void fetchConfig() {
         long cacheExpiration = 3600; // 1 hour in seconds
@@ -188,8 +197,6 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
     }
-
-
     /**
      * Apply retrieved length limit to edit text field.
      * This result may be fresh from the server or it may be from cached
@@ -202,7 +209,6 @@ public class MainActivity extends AppCompatActivity
                 InputFilter.LengthFilter(friendly_msg_length.intValue())});
         Log.d(TAG, "FML is: " + friendly_msg_length);
     }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -246,7 +252,7 @@ public class MainActivity extends AppCompatActivity
 
         mMessageRecyclerView.setAdapter(mFirebaseAdapter);
 
-        mMessageEditText = (EditText) findViewById(R.id.messageEditText);
+        mMessageEditText = findViewById(R.id.messageEditText);
         mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
                 .getInt(CodelabPreferences.FRIENDLY_MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
         mMessageEditText.addTextChangedListener(new TextWatcher() {
@@ -268,7 +274,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        mSendButton = (Button) findViewById(R.id.sendButton);
+        mSendButton =findViewById(R.id.sendButton);
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -285,7 +291,7 @@ public class MainActivity extends AppCompatActivity
         });
 
         mAddMessageImageView = findViewById(R.id.addMessageImageView);
-        mRecordAudioView = findViewById(R.id.recordAudioView);
+
         mAddMessageImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -298,6 +304,13 @@ public class MainActivity extends AppCompatActivity
         });
         configRemoteMsgLength();
         setupAdView();
+
+                        /*SETTING UP AUDIO FEATURES*/
+        recordAudioView = findViewById(R.id.recordAudioView);
+        fileName = Environment.getExternalStorageDirectory().getAbsolutePath();
+        fileName = fileName + "/recorded_audio.3gp";
+        vibrator = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE) ;
+        setupAudioRecordBtn();
     }
 
     private void setupDataBaseReference() {
@@ -427,7 +440,69 @@ public class MainActivity extends AppCompatActivity
 
     private void startRecording() {
         mediaRecorder = new MediaRecorder();
-//        mediaRecorder.setAudioSource();
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        mediaRecorder.setOutputFile(fileName);
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+
+        try {
+            mediaRecorder.prepare();
+        } catch (IOException e) {
+            Log.e("thisisatag", "prepare() failed");
+        }
+
+        mediaRecorder.start();
+    }
+
+    private void stopRecording() {
+            mediaRecorder.release();
+            mediaRecorder = null;
+            workInProgress = false;
+
+
+
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private void setupAudioRecordBtn() {
+        recordAudioView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                if (!workInProgress){
+                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+
+                    if (mediaRecorder == null) {
+                        recordAudioView.setClickable(false);
+                    startRecording();
+                    recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone_red));
+                    Toast.makeText(getApplicationContext(), "recording started",
+                            Toast.LENGTH_SHORT).show();
+                    vibrator.vibrate(50);}
+
+                } else if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
+                    workInProgress = true;
+                    if (mediaRecorder != null) {
+                        
+                                vibrator.vibrate(50);
+                                stopRecording();
+                                recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone));
+                                Toast.makeText(getApplicationContext(), "recording stopped",
+                                        Toast.LENGTH_SHORT).show();
+                    }
+                }}
+                return true;
+            }
+        });
+    }
+    @Override
+    public void onStop() {
+        super.onStop();
+
+
+//        if (mPlayer != null) {
+//            mPlayer.release();
+//            mPlayer = null;
+//        }
     }
 
     @Override
@@ -514,14 +589,12 @@ public class MainActivity extends AppCompatActivity
                 .setMetadata(new Action.Metadata.Builder().setUpload(false))
                 .build();
     }
-
     @Override
     public void onStart() {
         super.onStart();
         // Check if user is signed in.
         // TODO: Add code to check if user is signed in.
     }
-
     @Override
     public void onPause() {
         if (mAdView != null) {
@@ -532,7 +605,6 @@ public class MainActivity extends AppCompatActivity
         super.onPause();
 
     }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -543,7 +615,6 @@ public class MainActivity extends AppCompatActivity
 
 
     }
-
     @Override
     public void onDestroy() {
         if (mAdView != null) {
@@ -552,14 +623,12 @@ public class MainActivity extends AppCompatActivity
         super.onDestroy();
 
     }
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
         return true;
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -581,7 +650,6 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-
     private Indexable getMessageIndexable(FriendlyMessage friendlyMessage) {
         PersonBuilder sender = Indexables.personBuilder()
                 .setIsSelf(mUsername.equals(friendlyMessage.getName()))
@@ -601,8 +669,6 @@ public class MainActivity extends AppCompatActivity
 
         return messageToIndex;
     }
-
-
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         // An unresolvable error has occurred and Google APIs (including Sign-In) will not
