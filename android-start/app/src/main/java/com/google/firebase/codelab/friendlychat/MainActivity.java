@@ -155,6 +155,7 @@ public class MainActivity extends AppCompatActivity
     private ProgressDialog progressDialog;
     private MediaPlayer mediaPlayer;
     private boolean isPreparing;
+    private boolean isPlaying;
 
 
     private void configRemoteMsgLength() {
@@ -179,6 +180,7 @@ public class MainActivity extends AppCompatActivity
         // Fetch remote config.
         fetchConfig();
     }
+
     // Fetch the config to determine the allowed length of messages.
     public void fetchConfig() {
         long cacheExpiration = 3600; // 1 hour in seconds
@@ -209,6 +211,7 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
     }
+
     /**
      * Apply retrieved length limit to edit text field.
      * This result may be fresh from the server or it may be from cached
@@ -221,6 +224,7 @@ public class MainActivity extends AppCompatActivity
                 InputFilter.LengthFilter(friendly_msg_length.intValue())});
         Log.d(TAG, "FML is: " + friendly_msg_length);
     }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -241,7 +245,6 @@ public class MainActivity extends AppCompatActivity
         mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
 
         setupDataBaseReference();
-
 
 
         mFirebaseAdapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
@@ -286,7 +289,7 @@ public class MainActivity extends AppCompatActivity
             }
         });
 
-        mSendButton =findViewById(R.id.sendButton);
+        mSendButton = findViewById(R.id.sendButton);
         mSendButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -294,7 +297,7 @@ public class MainActivity extends AppCompatActivity
                         FriendlyMessage(mMessageEditText.getText().toString(),
                         mUsername,
                         mPhotoUrl,
-                        null /* no image */,null);
+                        null /* no image */, null);
                 mFirebaseDatabaseReference.child(MESSAGES_CHILD)
                         .push().setValue(friendlyMessage);
                 mMessageEditText.setText("");
@@ -317,11 +320,11 @@ public class MainActivity extends AppCompatActivity
         configRemoteMsgLength();
         setupAdView();
 
-                        /*SETTING UP AUDIO FEATURES*/
+        /*SETTING UP AUDIO FEATURES*/
         recordAudioView = findViewById(R.id.recordAudioView);
         fileName = Environment.getExternalStorageDirectory().getAbsolutePath();
         fileName = fileName + "/recorded_audio.mp3";
-        vibrator = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE) ;
+        vibrator = (Vibrator) getApplicationContext().getSystemService(Context.VIBRATOR_SERVICE);
         setupAudioRecordBtn();
 //        storageReference = FirebaseStorage.getInstance().getReference();
         progressDialog = new ProgressDialog(this);
@@ -367,7 +370,8 @@ public class MainActivity extends AppCompatActivity
                     viewHolder.messageTextView.setVisibility(TextView.VISIBLE);
                     viewHolder.messageImageView.setVisibility(ImageView.GONE);
                     viewHolder.playAudioImageView.setVisibility(View.GONE);
-                }if (friendlyMessage.getImageUrl() != null && friendlyMessage.getAudioUrl() == null) {
+                }
+                if (friendlyMessage.getImageUrl() != null && friendlyMessage.getAudioUrl() == null) {
 
                     String imageUrl = friendlyMessage.getImageUrl();
                     if (imageUrl.startsWith("gs://")) {
@@ -404,52 +408,38 @@ public class MainActivity extends AppCompatActivity
                     viewHolder.playAudioImageView.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View view) {
-                            viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.common_google_signin_btn_icon_light));
-                            StorageReference storageReference = FirebaseStorage.getInstance()
-                                    .getReferenceFromUrl(friendlyMessage.getAudioUrl());
+                            if (!isPlaying) {
+                                viewHolder.playAudioImageView.setClickable(false);
+                                viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.common_google_signin_btn_icon_light));
+                                StorageReference storageReference = FirebaseStorage.getInstance()
+                                        .getReferenceFromUrl(friendlyMessage.getAudioUrl());
 
-
-                            storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                @Override
-                                public void onSuccess(Uri uri) {
-                                    try {
-                                        startPlaying(uri);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
+                                    //getting download url to start playing
+                                storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                    @Override
+                                    public void onSuccess(Uri uri) {
+                                        try {
+                                            startPlaying(uri);
+                                        } catch (IOException e) {
+                                            e.printStackTrace();
+                                        }
                                     }
-                                }
-                            });
-//                            storageReference.getDownloadUrl().addOnCompleteListener(
-//                                    new OnCompleteListener<Uri>() {
-//                                        @Override
-//                                        public void onComplete(@NonNull Task<Uri> task) {
-//                                            if (task.isSuccessful()) {
-//                                               final String downloadUrl = task.getResult().toString();
-//
-//                                                    AsyncTask.execute(new Runnable() {
-//                                                        @Override
-//                                                        public void run() {
-//                                                            try {
-//                                                                startPlaying(downloadUrl);
-//                                                            } catch (IOException e) {
-//                                                                e.printStackTrace();
-//                                                            }
-//                                                        }
-//                                                    });
-//                                            } else {
-//                                                Log.w(TAG, "Getting download url was not successful.",
-//                                                        task.getException());
-//                                            }
-//                                        }
-//                                    });
-                            final Handler handler = new Handler();
-                            final int delay = 1000; //milliseconds
-                            handler.postDelayed(new Runnable(){
-                                public void run(){
-                                    checkIsPrepared(viewHolder);
-                                    handler.postDelayed(this, delay);
-                                }
-                            }, delay);
+                                });
+
+                        //checking for statuses every one second (preparing and playing audio)
+
+                                final Handler handler = new Handler();
+                                final int delay = 1000; //milliseconds
+                                handler.postDelayed(new Runnable() {
+                                    public void run() {
+                                        checkIsPlaying(viewHolder);
+                                        checkIsPrepared(viewHolder);
+                                        handler.postDelayed(this, delay);
+                                    }
+                                }, delay);
+
+
+                            }
                         }
                     });
 
@@ -533,11 +523,10 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void stopRecording() {
-            mediaRecorder.release();
-            mediaRecorder = null;
-            workInProgress = false;
-             uploadAudio();
-
+        mediaRecorder.release();
+        mediaRecorder = null;
+        workInProgress = false;
+        uploadAudio();
 
 
     }
@@ -548,9 +537,9 @@ public class MainActivity extends AppCompatActivity
 //        StorageReference filePath = storageReference.child("Audio").child("new_audio.3gp");
         final Uri uri = Uri.fromFile(new File(fileName));
 
-                            /********TEMP CODE*********/
+        /********TEMP CODE*********/
         FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, mPhotoUrl,
-                LOADING_IMAGE_URL,null);
+                "blob:https://loading.io/982a42a7-23b3-47bc-a0d8-e427feb502dc", null);
         audioDatabaseReference.child(MESSAGES_CHILD).push()
                 .setValue(tempMessage, new DatabaseReference.CompletionListener() {
                     @Override
@@ -572,7 +561,7 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
 
-                                        /***********/
+        /***********/
 
 //        filePath.putFile(uri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
 //            @Override
@@ -584,25 +573,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void startPlaying(Uri downloadUri) throws IOException {
+        isPlaying = true;
 //        Uri myUri = Uri.parse(url);
         if (mediaPlayer == null) {
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
             mediaPlayer.setDataSource(this, downloadUri);
-            mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-                @Override
-                public void onPrepared(MediaPlayer mediaPlayer) {
-                    isPreparing = false;
-                    mediaPlayer.start();
-                }
-            });
-            mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-                @Override
-                public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
-                    Log.v("tagg", "an error has occured");
-                    return false;
-                }
-            });
+            setOnMediaPlayerPreparedListener();
+            setOnMediaCompletionListener();
+            setOnMediaPlayerErrorListener();
             mediaPlayer.prepareAsync();
             isPreparing = true;
             Log.v("startplayingtag", "startplaying method is called");
@@ -615,6 +594,7 @@ public class MainActivity extends AppCompatActivity
     private void stopPlaying() {
         mediaPlayer.release();
         mediaPlayer = null;
+        isPlaying = false;
     }
 
     private void putAudioInStorage(StorageReference storageReference, Uri uri, final String key) {
@@ -626,12 +606,12 @@ public class MainActivity extends AppCompatActivity
                     public void onComplete(@NonNull Task<UploadTask.TaskSnapshot> task) {
                         if (task.isSuccessful()) {
                             FriendlyMessage friendlyMessage =
-                                    new FriendlyMessage(null, mUsername, mPhotoUrl, "https://qph.fs.quoracdn.net/main-qimg-257388444c388cf0b2a5d1cac72b40fe-c"
-                                            , task.getResult().getMetadata().getDownloadUrl()
+                                    new FriendlyMessage(null, mUsername, mPhotoUrl, null, task.getResult().getMetadata().getDownloadUrl()
                                             .toString());
                             audioDatabaseReference.child(MESSAGES_CHILD).child(key)
                                     .setValue(friendlyMessage);
                             Log.v("thisisatag", "Audio upload succeded");
+                            deleteRecorderFileOnSD();
                         } else {
                             Log.v("thisisatag", "Audio upload task was not successful.",
                                     task.getException());
@@ -639,6 +619,7 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
     }
+
     private void putImageInStorage(StorageReference storageReference, Uri uri, final String key) {
         Log.v("thisisatag", "putImageInStorage is called");
         storageReference.putFile(uri).addOnCompleteListener(MainActivity.this,
@@ -649,7 +630,7 @@ public class MainActivity extends AppCompatActivity
                             FriendlyMessage friendlyMessage =
                                     new FriendlyMessage(null, mUsername, mPhotoUrl,
                                             task.getResult().getMetadata().getDownloadUrl()
-                                                    .toString(),null);
+                                                    .toString(), null);
                             mFirebaseDatabaseReference.child(MESSAGES_CHILD).child(key)
                                     .setValue(friendlyMessage);
                             Log.v("thisisatag", "image upload succeded");
@@ -668,6 +649,46 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    private void checkIsPlaying(MessageViewHolder viewHolder) {
+        if (!isPlaying) {
+            viewHolder.playAudioImageView.setClickable(true);
+        }
+    }
+
+    private void setOnMediaPlayerPreparedListener() {
+        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mediaPlayer) {
+                isPreparing = false;
+                mediaPlayer.start();
+            }
+        });
+    }
+
+    private void setOnMediaCompletionListener() {
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                stopPlaying();
+            }
+        });
+    }
+
+    private void setOnMediaPlayerErrorListener() {
+        mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
+                Log.v("tagg", "an error has occured");
+                mediaPlayer.reset();
+                return false;
+            }
+        });
+    }
+
+    private void deleteRecorderFileOnSD() {
+        File file = new File(fileName);
+        file.delete();
+    }
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -675,32 +696,35 @@ public class MainActivity extends AppCompatActivity
         recordAudioView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                if (!workInProgress){
-                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                if (!workInProgress) {
+                    if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
 
-                    if (mediaRecorder == null) {
-                        recordAudioView.setClickable(false);
-                    startRecording();
-                    recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone_red));
-                    Toast.makeText(getApplicationContext(), "recording started",
-                            Toast.LENGTH_SHORT).show();
-                    vibrator.vibrate(50);}
+                        if (mediaRecorder == null) {
+                            recordAudioView.setClickable(false);
+                            startRecording();
+                            recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone_red));
+                            Toast.makeText(getApplicationContext(), "recording started",
+                                    Toast.LENGTH_SHORT).show();
+                            vibrator.vibrate(50);
+                        }
 
-                } else if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
-                    workInProgress = true;
-                    if (mediaRecorder != null) {
+                    } else if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
+                        workInProgress = true;
+                        if (mediaRecorder != null) {
 
-                                vibrator.vibrate(50);
-                                stopRecording();
-                                recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone));
-                                Toast.makeText(getApplicationContext(), "recording stopped",
-                                        Toast.LENGTH_SHORT).show();
+                            vibrator.vibrate(50);
+                            stopRecording();
+                            recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone));
+                            Toast.makeText(getApplicationContext(), "recording stopped",
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     }
-                }}
+                }
                 return true;
             }
         });
     }
+
     @Override
     public void onStop() {
         super.onStop();
@@ -724,7 +748,7 @@ public class MainActivity extends AppCompatActivity
                     Log.d("thisisatag", "Uri: " + uri.toString());
 
                     FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, mPhotoUrl,
-                            LOADING_IMAGE_URL,null);
+                            LOADING_IMAGE_URL, null);
                     mFirebaseDatabaseReference.child(MESSAGES_CHILD).push()
                             .setValue(tempMessage, new DatabaseReference.CompletionListener() {
                                 @Override
@@ -756,7 +780,7 @@ public class MainActivity extends AppCompatActivity
                 // Sending failed or it was canceled, show failure message to the user
                 Log.d(TAG, "Failed to send invitation.");
             }
-        }else {
+        } else {
             Bundle payload = new Bundle();
             payload.putString(FirebaseAnalytics.Param.VALUE, "not sent");
             mFirebaseAnalytics.logEvent(FirebaseAnalytics.Event.SHARE,
@@ -775,12 +799,14 @@ public class MainActivity extends AppCompatActivity
                 .setMetadata(new Action.Metadata.Builder().setUpload(false))
                 .build();
     }
+
     @Override
     public void onStart() {
         super.onStart();
         // Check if user is signed in.
         // TODO: Add code to check if user is signed in.
     }
+
     @Override
     public void onPause() {
         if (mAdView != null) {
@@ -791,6 +817,7 @@ public class MainActivity extends AppCompatActivity
         super.onPause();
 
     }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -801,6 +828,7 @@ public class MainActivity extends AppCompatActivity
 
 
     }
+
     @Override
     public void onDestroy() {
         if (mAdView != null) {
@@ -809,12 +837,14 @@ public class MainActivity extends AppCompatActivity
         super.onDestroy();
 
     }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.main_menu, menu);
         return true;
     }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -855,6 +885,7 @@ public class MainActivity extends AppCompatActivity
 
         return messageToIndex;
     }
+
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         // An unresolvable error has occurred and Google APIs (including Sign-In) will not
