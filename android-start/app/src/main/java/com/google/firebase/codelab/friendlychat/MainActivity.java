@@ -33,6 +33,7 @@ import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -103,16 +104,33 @@ public class MainActivity extends AppCompatActivity
         TextView messengerTextView;
         CircleImageView messengerImageView;
         ImageView playAudioImageView;
+        TextView incomingMessageTextView;
+        ImageView incomingMessageImageView;
+        TextView incomingMessengerTextView;
+        CircleImageView incomingMessengerImageView;
+        ImageView incomingPlayAudioImageView;
+        LinearLayout outgoingLinearLayout;
+        LinearLayout incomingLinearLayout;
+
 
         public MessageViewHolder(View v) {
             super(v);
-            messageTextView = (TextView) itemView.findViewById(R.id.messageTextView);
-            messageImageView = (ImageView) itemView.findViewById(R.id.messageImageView);
-            messengerTextView = (TextView) itemView.findViewById(R.id.messengerTextView);
-            messengerImageView = (CircleImageView) itemView.findViewById(R.id.messengerImageView);
+            messageTextView = itemView.findViewById(R.id.messageTextView);
+            messageImageView = itemView.findViewById(R.id.messageImageView);
+            messengerTextView = itemView.findViewById(R.id.messengerTextView);
+            messengerImageView = itemView.findViewById(R.id.messengerImageView);
             playAudioImageView = itemView.findViewById(R.id.playAudioImageView);
+            outgoingLinearLayout = itemView.findViewById(R.id.outgoing_model);
+            incomingLinearLayout = itemView.findViewById(R.id.incoming_model);
+            incomingMessageTextView = itemView.findViewById(R.id.messageTextView_incoming);
+            incomingMessageImageView = itemView.findViewById(R.id.messageImageView_incoming);
+            incomingMessengerTextView = itemView.findViewById(R.id.messengerTextView_incoming);
+            incomingMessengerImageView = itemView.findViewById(R.id.messengerImageView_incoming);
+            incomingPlayAudioImageView = itemView.findViewById(R.id.playAudioImageView_incoming);
+
         }
     }
+
 
     private static final String TAG = "MainActivity";
     public static final String MESSAGES_CHILD = "messages";
@@ -122,8 +140,8 @@ public class MainActivity extends AppCompatActivity
     public static final int DEFAULT_MSG_LENGTH_LIMIT = 10;
     public static final String ANONYMOUS = "anonymous";
     private static final String MESSAGE_SENT_EVENT = "message_sent";
-    private String mUsername;
-    private String mPhotoUrl;
+    public String mUsername;
+    private String avatarUrl;
     private SharedPreferences mSharedPreferences;
     private GoogleApiClient mGoogleApiClient;
     private static final String MESSAGE_URL = "http://friendlychat.firebase.google.com/message/";
@@ -239,8 +257,8 @@ public class MainActivity extends AppCompatActivity
 
 
         // Initialize ProgressBar and RecyclerView.
-        mProgressBar = (ProgressBar) findViewById(R.id.progressBar);
-        mMessageRecyclerView = (RecyclerView) findViewById(R.id.messageRecyclerView);
+        mProgressBar = findViewById(R.id.progressBar);
+        mMessageRecyclerView = findViewById(R.id.messageRecyclerView);
         mLinearLayoutManager = new LinearLayoutManager(this);
         mLinearLayoutManager.setStackFromEnd(true);
         mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
@@ -297,7 +315,7 @@ public class MainActivity extends AppCompatActivity
                 FriendlyMessage friendlyMessage = new
                         FriendlyMessage(mMessageEditText.getText().toString(),
                         mUsername,
-                        mPhotoUrl,
+                        avatarUrl,
                         null /* no image */, null);
                 mFirebaseDatabaseReference.child(MESSAGES_CHILD)
                         .push().setValue(friendlyMessage);
@@ -366,96 +384,47 @@ public class MainActivity extends AppCompatActivity
                                             int position,
                                             final FriendlyMessage friendlyMessage) {
                 mProgressBar.setVisibility(ProgressBar.INVISIBLE);
-                if (friendlyMessage.getText() != null) {
-                    viewHolder.messageTextView.setText(friendlyMessage.getText());
-                    viewHolder.messageTextView.setVisibility(TextView.VISIBLE);
-                    viewHolder.messageImageView.setVisibility(ImageView.GONE);
-                    viewHolder.playAudioImageView.setVisibility(View.GONE);
-                }
-                if (friendlyMessage.getImageUrl() != null && friendlyMessage.getAudioUrl() == null) {
 
-                    String imageUrl = friendlyMessage.getImageUrl();
-                    if (imageUrl.startsWith("gs://")) {
-                        StorageReference storageReference = FirebaseStorage.getInstance()
-                                .getReferenceFromUrl(imageUrl);
-                        storageReference.getDownloadUrl().addOnCompleteListener(
-                                new OnCompleteListener<Uri>() {
-                                    @Override
-                                    public void onComplete(@NonNull Task<Uri> task) {
-                                        if (task.isSuccessful()) {
-                                            String downloadUrl = task.getResult().toString();
-                                            Glide.with(viewHolder.messageImageView.getContext())
-                                                    .load(downloadUrl)
-                                                    .into(viewHolder.messageImageView);
-                                        } else {
-                                            Log.w(TAG, "Getting download url was not successful.",
-                                                    task.getException());
-                                        }
-                                    }
-                                });
+//                CHECKS WHETHER THE MESSAGE IS OUTGOING OR INCOMING
+
+                if (mUsername.equals(friendlyMessage.getName())) {
+
+//                    THIS MESSAGE IS OUTGOING
+
+                    viewHolder.outgoingLinearLayout.setVisibility(View.VISIBLE);
+                    viewHolder.incomingLinearLayout.setVisibility(View.GONE);
+                    setUpOutgoingMessageViewHolder(friendlyMessage, viewHolder);
+
+                    viewHolder.messengerTextView.setText(friendlyMessage.getName());
+                    if (friendlyMessage.getAvatarUrl() == null) {
+                        viewHolder.messengerImageView.setImageDrawable(ContextCompat.getDrawable(MainActivity.this,
+                                R.drawable.ic_account_circle_black_36dp));
                     } else {
-                        Glide.with(viewHolder.messageImageView.getContext())
-                                .load(friendlyMessage.getImageUrl())
-                                .into(viewHolder.messageImageView);
+                        Glide.with(MainActivity.this)
+                                .load(friendlyMessage.getAvatarUrl())
+                                .into(viewHolder.messengerImageView);
                     }
-                    viewHolder.messageImageView.setVisibility(ImageView.VISIBLE);
-                    viewHolder.messageTextView.setVisibility(TextView.GONE);
 
-                }
-                if (friendlyMessage.getAudioUrl() != null) {
-                    viewHolder.playAudioImageView.setVisibility(View.VISIBLE);
-                    viewHolder.messageTextView.setVisibility(TextView.GONE);
-                    viewHolder.messageImageView.setVisibility(ImageView.GONE);
-                    viewHolder.playAudioImageView.setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View view) {
-                            if (!isPlaying) {
-                                viewHolder.playAudioImageView.setClickable(false);
-                                viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.common_google_signin_btn_icon_light));
-                                StorageReference storageReference = FirebaseStorage.getInstance()
-                                        .getReferenceFromUrl(friendlyMessage.getAudioUrl());
-
-                                    //getting download url to start playing
-                                storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                                    @Override
-                                    public void onSuccess(Uri uri) {
-                                        try {
-                                            startPlaying(uri);
-                                        } catch (IOException e) {
-                                            e.printStackTrace();
-                                        }
-                                    }
-                                });
-
-                        //checking for statuses every one second (preparing and playing audio)
-
-                                final Handler handler = new Handler();
-                                final int delay = 1000; //milliseconds
-                                handler.postDelayed(new Runnable() {
-                                    public void run() {
-                                        checkIsPlaying(viewHolder);
-                                        checkIsPrepared(viewHolder);
-                                        handler.postDelayed(this, delay);
-                                    }
-                                }, delay);
-
-
-                            }
-                        }
-                    });
-
-
-                }
-
-
-                viewHolder.messengerTextView.setText(friendlyMessage.getName());
-                if (friendlyMessage.getPhotoUrl() == null) {
-                    viewHolder.messengerImageView.setImageDrawable(ContextCompat.getDrawable(MainActivity.this,
-                            R.drawable.ic_account_circle_black_36dp));
                 } else {
-                    Glide.with(MainActivity.this)
-                            .load(friendlyMessage.getPhotoUrl())
-                            .into(viewHolder.messengerImageView);
+
+//                    THIS MESSAGE IS INCOMING
+
+                    viewHolder.outgoingLinearLayout.setVisibility(View.GONE);
+                    viewHolder.incomingLinearLayout.setVisibility(View.VISIBLE);
+                    setUpOutgoingIncomingMessageViewHolder(friendlyMessage, viewHolder);
+
+                    viewHolder.incomingMessengerTextView.setText(friendlyMessage.getName());
+                    if (friendlyMessage.getAvatarUrl() == null) {
+                        viewHolder.incomingMessengerImageView.setImageDrawable(ContextCompat.getDrawable(MainActivity.this,
+                                R.drawable.ic_account_circle_black_36dp));
+                    } else {
+                        Glide.with(MainActivity.this)
+                                .load(friendlyMessage.getAvatarUrl())
+                                .into(viewHolder.incomingMessengerImageView);}
+
+
+
+
                 }
                 if (friendlyMessage.getText() != null) {
                     // write this message to the on-device index
@@ -481,7 +450,7 @@ public class MainActivity extends AppCompatActivity
         } else {
             mUsername = mFirebaseUser.getDisplayName();
             if (mFirebaseUser.getPhotoUrl() != null) {
-                mPhotoUrl = mFirebaseUser.getPhotoUrl().toString();
+                avatarUrl = mFirebaseUser.getPhotoUrl().toString();
             }
         }
     }
@@ -514,6 +483,7 @@ public class MainActivity extends AppCompatActivity
         mediaRecorder.setOutputFile(fileName);
         mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
+
         try {
             mediaRecorder.prepare();
         } catch (IOException e) {
@@ -539,8 +509,8 @@ public class MainActivity extends AppCompatActivity
         final Uri uri = Uri.fromFile(new File(fileName));
 
         /********TEMP CODE*********/
-        FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, mPhotoUrl,
-                "blob:https://loading.io/982a42a7-23b3-47bc-a0d8-e427feb502dc", null);
+        FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, avatarUrl,
+                null, null);
         audioDatabaseReference.child(MESSAGES_CHILD).push()
                 .setValue(tempMessage, new DatabaseReference.CompletionListener() {
                     @Override
@@ -607,7 +577,7 @@ public class MainActivity extends AppCompatActivity
                     public void onComplete(@NonNull Task<UploadTask.TaskSnapshot> task) {
                         if (task.isSuccessful()) {
                             FriendlyMessage friendlyMessage =
-                                    new FriendlyMessage(null, mUsername, mPhotoUrl, null, task.getResult().getMetadata().getDownloadUrl()
+                                    new FriendlyMessage(null, mUsername, avatarUrl, null, task.getResult().getMetadata().getDownloadUrl()
                                             .toString());
                             audioDatabaseReference.child(MESSAGES_CHILD).child(key)
                                     .setValue(friendlyMessage);
@@ -629,7 +599,7 @@ public class MainActivity extends AppCompatActivity
                     public void onComplete(@NonNull Task<UploadTask.TaskSnapshot> task) {
                         if (task.isSuccessful()) {
                             FriendlyMessage friendlyMessage =
-                                    new FriendlyMessage(null, mUsername, mPhotoUrl,
+                                    new FriendlyMessage(null, mUsername, avatarUrl,
                                             task.getResult().getMetadata().getDownloadUrl()
                                                     .toString(), null);
                             mFirebaseDatabaseReference.child(MESSAGES_CHILD).child(key)
@@ -656,12 +626,183 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    private void setUpOutgoingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
+        if (friendlyMessage.getText() != null) {
+            viewHolder.messageTextView.setText(friendlyMessage.getText());
+            viewHolder.messageTextView.setVisibility(TextView.VISIBLE);
+            viewHolder.messageImageView.setVisibility(ImageView.GONE);
+            viewHolder.playAudioImageView.setVisibility(View.GONE);
+        }
+        if (friendlyMessage.getImageUrl() != null && friendlyMessage.getAudioUrl() == null) {
+
+            String imageUrl = friendlyMessage.getImageUrl();
+            if (imageUrl.startsWith("gs://")) {
+                StorageReference storageReference = FirebaseStorage.getInstance()
+                        .getReferenceFromUrl(imageUrl);
+                storageReference.getDownloadUrl().addOnCompleteListener(
+                        new OnCompleteListener<Uri>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Uri> task) {
+                                if (task.isSuccessful()) {
+                                    String downloadUrl = task.getResult().toString();
+                                    Glide.with(viewHolder.messageImageView.getContext())
+                                            .load(downloadUrl)
+                                            .into(viewHolder.messageImageView);
+                                } else {
+                                    Log.w(TAG, "Getting download url was not successful.",
+                                            task.getException());
+                                }
+                            }
+                        });
+            } else {
+                Glide.with(viewHolder.messageImageView.getContext())
+                        .load(friendlyMessage.getImageUrl())
+                        .into(viewHolder.messageImageView);
+            }
+            viewHolder.messageImageView.setVisibility(ImageView.VISIBLE);
+            viewHolder.messageTextView.setVisibility(TextView.GONE);
+            viewHolder.playAudioImageView.setVisibility(View.GONE);
+
+        }
+        if (friendlyMessage.getAudioUrl() != null) {
+            viewHolder.playAudioImageView.setVisibility(View.VISIBLE);
+            viewHolder.messageTextView.setVisibility(TextView.GONE);
+            viewHolder.messageImageView.setVisibility(ImageView.GONE);
+            viewHolder.playAudioImageView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if (!isPlaying) {
+                        viewHolder.playAudioImageView.setClickable(false);
+                        Glide.with(getApplicationContext()).load(R.drawable.spinner_loader).into(viewHolder.playAudioImageView);
+//                                viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.common_google_signin_btn_icon_light));
+                        StorageReference storageReference = FirebaseStorage.getInstance()
+                                .getReferenceFromUrl(friendlyMessage.getAudioUrl());
+
+                        //getting download url to start playing
+                        storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                            @Override
+                            public void onSuccess(Uri uri) {
+                                try {
+                                    startPlaying(uri);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+
+                        //checking for statuses every one second (preparing and playing audio)
+
+                        final Handler handler = new Handler();
+                        final int delay = 1000; //milliseconds
+                        handler.postDelayed(new Runnable() {
+                            public void run() {
+                                checkIsPlaying(viewHolder);
+                                checkIsPrepared(viewHolder);
+                                handler.postDelayed(this, delay);
+                            }
+                        }, delay);
+
+
+                    }
+                }
+            });
+
+
+        }
+    }
+
+    private void setUpOutgoingIncomingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
+        if (friendlyMessage.getText() != null) {
+            viewHolder.incomingMessageTextView.setText(friendlyMessage.getText());
+            viewHolder.incomingMessageTextView.setVisibility(TextView.VISIBLE);
+            viewHolder.incomingMessageImageView.setVisibility(ImageView.GONE);
+            viewHolder.incomingPlayAudioImageView.setVisibility(View.GONE);
+        }
+        if (friendlyMessage.getImageUrl() != null && friendlyMessage.getAudioUrl() == null) {
+
+            String imageUrl = friendlyMessage.getImageUrl();
+            if (imageUrl.startsWith("gs://")) {
+                StorageReference storageReference = FirebaseStorage.getInstance()
+                        .getReferenceFromUrl(imageUrl);
+                storageReference.getDownloadUrl().addOnCompleteListener(
+                        new OnCompleteListener<Uri>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Uri> task) {
+                                if (task.isSuccessful()) {
+                                    String downloadUrl = task.getResult().toString();
+                                    Glide.with(viewHolder.incomingMessageImageView.getContext())
+                                            .load(downloadUrl)
+                                            .into(viewHolder.incomingMessageImageView);
+                                } else {
+                                    Log.w(TAG, "Getting download url was not successful.",
+                                            task.getException());
+                                }
+                            }
+                        });
+            } else {
+                Glide.with(viewHolder.incomingMessageImageView.getContext())
+                        .load(friendlyMessage.getImageUrl())
+                        .into(viewHolder.incomingMessageImageView);
+            }
+            viewHolder.incomingMessageImageView.setVisibility(ImageView.VISIBLE);
+            viewHolder.incomingMessageTextView.setVisibility(TextView.GONE);
+            viewHolder.incomingPlayAudioImageView.setVisibility(View.GONE);
+
+        }
+        if (friendlyMessage.getAudioUrl() != null) {
+            viewHolder.incomingPlayAudioImageView.setVisibility(View.VISIBLE);
+            viewHolder.incomingMessageTextView.setVisibility(TextView.GONE);
+            viewHolder.incomingMessageImageView.setVisibility(ImageView.GONE);
+            viewHolder.incomingPlayAudioImageView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if (!isPlaying) {
+                        viewHolder.incomingPlayAudioImageView.setClickable(false);
+                        Glide.with(getApplicationContext()).load(R.drawable.spinner_loader).into(viewHolder.incomingPlayAudioImageView);
+//                                viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.common_google_signin_btn_icon_light));
+                        StorageReference storageReference = FirebaseStorage.getInstance()
+                                .getReferenceFromUrl(friendlyMessage.getAudioUrl());
+
+                        //getting download url to start playing
+                        storageReference.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                            @Override
+                            public void onSuccess(Uri uri) {
+                                try {
+                                    startPlaying(uri);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        });
+
+                        //checking for statuses every one second (preparing and playing audio)
+
+                        final Handler handler = new Handler();
+                        final int delay = 1000; //milliseconds
+                        handler.postDelayed(new Runnable() {
+                            public void run() {
+                                checkIsPlaying(viewHolder);
+                                checkIsPrepared(viewHolder);
+                                handler.postDelayed(this, delay);
+                            }
+                        }, delay);
+
+
+                    }
+                }
+            });
+
+
+        }
+    }
+
     private void setOnMediaPlayerPreparedListener() {
         mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
                 isPreparing = false;
                 mediaPlayer.start();
+                Toast.makeText(MainActivity.this, "playback started", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -692,32 +833,47 @@ public class MainActivity extends AppCompatActivity
     }
 
 
+
+
     @SuppressLint("ClickableViewAccessibility")
     private void setupAudioRecordBtn() {
+        final Handler handler = new Handler();
         recordAudioView.setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public boolean onTouch(View view, MotionEvent motionEvent) {
+            public boolean onTouch(View view, final MotionEvent motionEvent) {
+                recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone_red));
                 if (!workInProgress) {
                     if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (mediaRecorder == null) {
+                                    recordAudioView.setClickable(false);
+                                    startRecording();
+                                    Toast.makeText(getApplicationContext(), "recording started",
+                                            Toast.LENGTH_SHORT).show();
+                                    vibrator.vibrate(50);
+                                }
 
-                        if (mediaRecorder == null) {
-                            recordAudioView.setClickable(false);
-                            startRecording();
-                            recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone_red));
-                            Toast.makeText(getApplicationContext(), "recording started",
-                                    Toast.LENGTH_SHORT).show();
-                            vibrator.vibrate(50);
-                        }
+                            }
+                        }, 500);
+
 
                     } else if (motionEvent.getAction() == MotionEvent.ACTION_UP) {
-                        workInProgress = true;
+                        handler.removeCallbacksAndMessages(null);
                         if (mediaRecorder != null) {
-
+                            workInProgress = true;
                             vibrator.vibrate(50);
                             stopRecording();
                             recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone));
                             Toast.makeText(getApplicationContext(), "recording stopped",
                                     Toast.LENGTH_SHORT).show();
+                        } else {
+                            vibrator.vibrate(1000);
+                            Toast.makeText(getApplicationContext(),
+                                    "please press and hold for at least one second",
+                                    Toast.LENGTH_LONG).show();
+                            recordAudioView.setImageDrawable(getResources().getDrawable(R.drawable.microphone));
                         }
                     }
                 }
@@ -748,8 +904,8 @@ public class MainActivity extends AppCompatActivity
                     final Uri uri = data.getData();
                     Log.d("thisisatag", "Uri: " + uri.toString());
 
-                    FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, mPhotoUrl,
-                            LOADING_IMAGE_URL, null);
+                    FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, avatarUrl,
+                            null, null);
                     mFirebaseDatabaseReference.child(MESSAGES_CHILD).push()
                             .setValue(tempMessage, new DatabaseReference.CompletionListener() {
                                 @Override

@@ -5,83 +5,6 @@
     android:orientation="vertical">
 
     <LinearLayout
-        android:id="@+id/outgoing_model"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="end"
-        android:orientation="horizontal">
-
-        <LinearLayout
-
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/balloon_outgoing_normal"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/messageTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginBottom="4dp"
-                android:layout_marginEnd="18dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="4dp"
-                android:layout_weight="0"
-                android:gravity="center_horizontal"
-                android:textAppearance="?android:attr/textAppearanceLarge" />
-
-            <ImageView
-                android:id="@+id/playAudioImageView"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="4dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="8dp"
-                android:background="@null"
-                android:scaleType="fitCenter"
-                android:src="@drawable/play"
-                android:visibility="gone" />
-
-            <ImageView
-                android:id="@+id/messageImageView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:layout_marginBottom="4dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginStart="24dp"
-                android:layout_marginTop="8dp"
-                android:adjustViewBounds="true"
-                android:background="@null"
-                android:scaleType="fitCenter" />
-
-            <TextView
-                android:id="@+id/messengerTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:layout_marginEnd="24dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginTop="2dp"
-                android:paddingStart="2dp"
-                android:textAppearance="?android:attr/textAppearanceSmall" />
-        </LinearLayout>
-
-        <de.hdodenhof.circleimageview.CircleImageView
-            android:id="@+id/messengerImageView"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:layout_gravity="center_vertical"
-            android:src="@drawable/ic_account_circle_black_36dp" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/incoming_model"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_vertical"
@@ -91,7 +14,6 @@
             android:id="@+id/messengerImageView_incoming"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:layout_gravity="center_vertical"
             android:src="@drawable/ic_account_circle_black_36dp" />
 
         <LinearLayout
@@ -151,8 +73,10 @@
                 android:layout_marginEnd="8dp"
                 android:layout_marginStart="18dp"
                 android:layout_marginTop="2dp"
+                android:layout_weight="0"
                 android:textAppearance="?android:attr/textAppearanceSmall" />
         </LinearLayout>
+
     </LinearLayout>
 
 

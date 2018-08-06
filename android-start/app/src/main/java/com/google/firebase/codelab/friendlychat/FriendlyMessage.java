@@ -20,7 +20,7 @@ public class FriendlyMessage {
     private String id;
     private String text;
     private String name;
-    private String photoUrl;
+    private String avatarUrl;
     private String imageUrl;
     private String audioUrl;
 
@@ -30,10 +30,10 @@ public class FriendlyMessage {
     public FriendlyMessage() {
     }
 
-    public FriendlyMessage(String text, String name, String photoUrl, String imageUrl, String audioUrl) {
+    public FriendlyMessage(String text, String name, String avatarUrl, String imageUrl, String audioUrl) {
         this.text = text;
         this.name = name;
-        this.photoUrl = photoUrl;
+        this.avatarUrl = avatarUrl;
         this.imageUrl = imageUrl;
         this.audioUrl = audioUrl;
     }
@@ -65,16 +65,16 @@ public class FriendlyMessage {
         this.name = name;
     }
 
-    public String getPhotoUrl() {
-        return photoUrl;
+    public String getAvatarUrl() {
+        return avatarUrl;
     }
 
     public String getText() {
         return text;
     }
 
-    public void setPhotoUrl(String photoUrl) {
-        this.photoUrl = photoUrl;
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public String getImageUrl() {
