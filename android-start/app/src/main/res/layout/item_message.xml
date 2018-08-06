@@ -15,8 +15,10 @@
 
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="34dp"
             android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
             android:background="@drawable/balloon_outgoing_normal"
             android:orientation="vertical">
 
@@ -38,10 +40,10 @@
                 android:layout_width="36dp"
                 android:layout_height="36dp"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="4dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="4dp"
+                android:layout_marginTop="4dp"
                 android:background="@null"
+
                 android:scaleType="fitCenter"
                 android:src="@drawable/play"
                 android:visibility="gone" />
@@ -52,11 +54,12 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
                 android:layout_marginBottom="4dp"
-                android:layout_marginEnd="12dp"
-                android:layout_marginStart="24dp"
+                android:layout_marginEnd="18dp"
+                android:layout_marginStart="10dp"
                 android:layout_marginTop="8dp"
                 android:adjustViewBounds="true"
                 android:background="@null"
+                android:gravity="center_horizontal"
                 android:scaleType="fitCenter" />
 
             <TextView
@@ -97,8 +100,9 @@
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="10dp"
+            android:layout_marginStart="10dp"
             android:layout_marginTop="12dp"
+            android:layout_marginBottom="4dp"
             android:background="@drawable/balloon_incoming_normal"
             android:gravity="center_vertical"
             android:orientation="vertical">
@@ -139,7 +143,7 @@
                 android:layout_marginStart="18dp"
                 android:layout_marginTop="8dp"
                 android:adjustViewBounds="true"
-                android:background="@color/colorPrimary"
+                android:background="@null"
                 android:gravity="center_horizontal"
                 android:scaleType="fitCenter" />
 

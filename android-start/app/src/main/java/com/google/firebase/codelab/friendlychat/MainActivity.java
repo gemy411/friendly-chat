@@ -411,7 +411,7 @@ public class MainActivity extends AppCompatActivity
 
                     viewHolder.outgoingLinearLayout.setVisibility(View.GONE);
                     viewHolder.incomingLinearLayout.setVisibility(View.VISIBLE);
-                    setUpOutgoingIncomingMessageViewHolder(friendlyMessage, viewHolder);
+                    setUpIncomingMessageViewHolder(friendlyMessage, viewHolder);
 
                     viewHolder.incomingMessengerTextView.setText(friendlyMessage.getName());
                     if (friendlyMessage.getAvatarUrl() == null) {
@@ -420,9 +420,8 @@ public class MainActivity extends AppCompatActivity
                     } else {
                         Glide.with(MainActivity.this)
                                 .load(friendlyMessage.getAvatarUrl())
-                                .into(viewHolder.incomingMessengerImageView);}
-
-
+                                .into(viewHolder.incomingMessengerImageView);
+                    }
 
 
                 }
@@ -613,9 +612,14 @@ public class MainActivity extends AppCompatActivity
                 });
     }
 
-    private void checkIsPrepared(MessageViewHolder viewHolder) {
+    private void checkIsPrepared(MessageViewHolder viewHolder, boolean isOutgoing) {
         if (!isPreparing) {
-            viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.play));
+            if (isOutgoing) {
+                viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.play));
+            } else {
+                viewHolder.incomingPlayAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.play));
+            }
+
         }
 
     }
@@ -697,7 +701,7 @@ public class MainActivity extends AppCompatActivity
                         handler.postDelayed(new Runnable() {
                             public void run() {
                                 checkIsPlaying(viewHolder);
-                                checkIsPrepared(viewHolder);
+                                checkIsPrepared(viewHolder, true);
                                 handler.postDelayed(this, delay);
                             }
                         }, delay);
@@ -711,7 +715,7 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
-    private void setUpOutgoingIncomingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
+    private void setUpIncomingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
         if (friendlyMessage.getText() != null) {
             viewHolder.incomingMessageTextView.setText(friendlyMessage.getText());
             viewHolder.incomingMessageTextView.setVisibility(TextView.VISIBLE);
@@ -782,7 +786,7 @@ public class MainActivity extends AppCompatActivity
                         handler.postDelayed(new Runnable() {
                             public void run() {
                                 checkIsPlaying(viewHolder);
-                                checkIsPrepared(viewHolder);
+                                checkIsPrepared(viewHolder, false);
                                 handler.postDelayed(this, delay);
                             }
                         }, delay);
@@ -831,8 +835,6 @@ public class MainActivity extends AppCompatActivity
         File file = new File(fileName);
         file.delete();
     }
-
-
 
 
     @SuppressLint("ClickableViewAccessibility")
