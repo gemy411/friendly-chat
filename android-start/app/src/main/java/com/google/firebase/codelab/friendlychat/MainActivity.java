@@ -39,6 +39,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
 import com.firebase.ui.database.FirebaseRecyclerAdapter;
 import com.firebase.ui.database.FirebaseRecyclerOptions;
 import com.firebase.ui.database.SnapshotParser;
@@ -70,6 +71,7 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.wang.avi.AVLoadingIndicatorView;
 
 import java.io.File;
 import java.io.IOException;
@@ -111,9 +113,12 @@ public class MainActivity extends AppCompatActivity
         ImageView incomingPlayAudioImageView;
         LinearLayout outgoingLinearLayout;
         LinearLayout incomingLinearLayout;
+        AVLoadingIndicatorView avi;
+        AVLoadingIndicatorView incomingAvi;
 
 
-        public MessageViewHolder(View v) {
+
+        MessageViewHolder(View v) {
             super(v);
             messageTextView = itemView.findViewById(R.id.messageTextView);
             messageImageView = itemView.findViewById(R.id.messageImageView);
@@ -127,7 +132,8 @@ public class MainActivity extends AppCompatActivity
             incomingMessengerTextView = itemView.findViewById(R.id.messengerTextView_incoming);
             incomingMessengerImageView = itemView.findViewById(R.id.messengerImageView_incoming);
             incomingPlayAudioImageView = itemView.findViewById(R.id.playAudioImageView_incoming);
-
+            avi = itemView.findViewById(R.id.loading_indicator_view);
+            incomingAvi = itemView.findViewById(R.id.incoming_loading_indicator_view);
         }
     }
 
@@ -174,6 +180,7 @@ public class MainActivity extends AppCompatActivity
     private MediaPlayer mediaPlayer;
     private boolean isPreparing;
     private boolean isPlaying;
+
 
 
     private void configRemoteMsgLength() {
@@ -256,12 +263,14 @@ public class MainActivity extends AppCompatActivity
         initiateGoogleApiClient();
 
 
+
         // Initialize ProgressBar and RecyclerView.
         mProgressBar = findViewById(R.id.progressBar);
         mMessageRecyclerView = findViewById(R.id.messageRecyclerView);
         mLinearLayoutManager = new LinearLayoutManager(this);
         mLinearLayoutManager.setStackFromEnd(true);
-        mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
+
+
 
         setupDataBaseReference();
 
@@ -283,9 +292,6 @@ public class MainActivity extends AppCompatActivity
                 }
             }
         });
-
-        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
-
         mMessageEditText = findViewById(R.id.messageEditText);
         mMessageEditText.setFilters(new InputFilter[]{new InputFilter.LengthFilter(mSharedPreferences
                 .getInt(CodelabPreferences.FRIENDLY_MSG_LENGTH, DEFAULT_MSG_LENGTH_LIMIT))});
@@ -348,8 +354,6 @@ public class MainActivity extends AppCompatActivity
 //        storageReference = FirebaseStorage.getInstance().getReference();
         progressDialog = new ProgressDialog(this);
         isPreparing = true;
-
-
     }
 
     private void setupDataBaseReference() {
@@ -435,6 +439,10 @@ public class MainActivity extends AppCompatActivity
 
             }
         };
+
+        mMessageRecyclerView.setAdapter(mFirebaseAdapter);
+        mMessageRecyclerView.setLayoutManager(mLinearLayoutManager);
+
     }
 
     private void initializeFireBaseAuth() {
@@ -510,6 +518,7 @@ public class MainActivity extends AppCompatActivity
         /********TEMP CODE*********/
         FriendlyMessage tempMessage = new FriendlyMessage(null, mUsername, avatarUrl,
                 null, null);
+
         audioDatabaseReference.child(MESSAGES_CHILD).push()
                 .setValue(tempMessage, new DatabaseReference.CompletionListener() {
                     @Override
@@ -599,14 +608,14 @@ public class MainActivity extends AppCompatActivity
                         if (task.isSuccessful()) {
                             FriendlyMessage friendlyMessage =
                                     new FriendlyMessage(null, mUsername, avatarUrl,
-                                            task.getResult().getMetadata().getDownloadUrl()
-                                                    .toString(), null);
+
+                                            task.getResult().getMetadata().getDownloadUrl().toString()
+                                            , null);
                             mFirebaseDatabaseReference.child(MESSAGES_CHILD).child(key)
                                     .setValue(friendlyMessage);
                             Log.v("thisisatag", "image upload succeded");
                         } else {
-                            Log.v("thisisatag", "Image upload task was not successful.",
-                                    task.getException());
+                            Toast.makeText(MainActivity.this, "error putting image in storage", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -618,19 +627,29 @@ public class MainActivity extends AppCompatActivity
                 viewHolder.playAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.play));
             } else {
                 viewHolder.incomingPlayAudioImageView.setImageDrawable(getResources().getDrawable(R.drawable.play));
+
             }
 
         }
 
     }
 
-    private void checkIsPlaying(MessageViewHolder viewHolder) {
+    private void checkIsPlaying(MessageViewHolder viewHolder, boolean isOutgoing) {
         if (!isPlaying) {
-            viewHolder.playAudioImageView.setClickable(true);
+            if (isOutgoing) {
+                viewHolder.playAudioImageView.setClickable(true);
+            } else {
+                viewHolder.incomingPlayAudioImageView.setClickable(true);
+
+            }
+
         }
     }
 
     private void setUpOutgoingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
+
+        viewHolder.avi.setVisibility(View.GONE);
+
         if (friendlyMessage.getText() != null) {
             viewHolder.messageTextView.setText(friendlyMessage.getText());
             viewHolder.messageTextView.setVisibility(TextView.VISIBLE);
@@ -650,8 +669,9 @@ public class MainActivity extends AppCompatActivity
                                 if (task.isSuccessful()) {
                                     String downloadUrl = task.getResult().toString();
                                     Glide.with(viewHolder.messageImageView.getContext())
-                                            .load(downloadUrl)
+                                            .load(downloadUrl).apply(RequestOptions.centerCropTransform())
                                             .into(viewHolder.messageImageView);
+
                                 } else {
                                     Log.w(TAG, "Getting download url was not successful.",
                                             task.getException());
@@ -660,7 +680,7 @@ public class MainActivity extends AppCompatActivity
                         });
             } else {
                 Glide.with(viewHolder.messageImageView.getContext())
-                        .load(friendlyMessage.getImageUrl())
+                        .load(friendlyMessage.getImageUrl()).apply(RequestOptions.centerCropTransform())
                         .into(viewHolder.messageImageView);
             }
             viewHolder.messageImageView.setVisibility(ImageView.VISIBLE);
@@ -700,7 +720,7 @@ public class MainActivity extends AppCompatActivity
                         final int delay = 1000; //milliseconds
                         handler.postDelayed(new Runnable() {
                             public void run() {
-                                checkIsPlaying(viewHolder);
+                                checkIsPlaying(viewHolder, true);
                                 checkIsPrepared(viewHolder, true);
                                 handler.postDelayed(this, delay);
                             }
@@ -713,9 +733,17 @@ public class MainActivity extends AppCompatActivity
 
 
         }
+        if (friendlyMessage.getImageUrl() == null && friendlyMessage.getAudioUrl() == null && friendlyMessage.getText() == null) {
+
+            viewHolder.avi.setVisibility(View.VISIBLE);
+            viewHolder.messageImageView.setVisibility(View.GONE);
+            viewHolder.playAudioImageView.setVisibility(View.GONE);
+
+        }
     }
 
     private void setUpIncomingMessageViewHolder(final FriendlyMessage friendlyMessage, final MessageViewHolder viewHolder) {
+        viewHolder.incomingAvi.setVisibility(View.GONE);
         if (friendlyMessage.getText() != null) {
             viewHolder.incomingMessageTextView.setText(friendlyMessage.getText());
             viewHolder.incomingMessageTextView.setVisibility(TextView.VISIBLE);
@@ -735,7 +763,7 @@ public class MainActivity extends AppCompatActivity
                                 if (task.isSuccessful()) {
                                     String downloadUrl = task.getResult().toString();
                                     Glide.with(viewHolder.incomingMessageImageView.getContext())
-                                            .load(downloadUrl)
+                                            .load(downloadUrl).apply(RequestOptions.centerCropTransform())
                                             .into(viewHolder.incomingMessageImageView);
                                 } else {
                                     Log.w(TAG, "Getting download url was not successful.",
@@ -745,7 +773,7 @@ public class MainActivity extends AppCompatActivity
                         });
             } else {
                 Glide.with(viewHolder.incomingMessageImageView.getContext())
-                        .load(friendlyMessage.getImageUrl())
+                        .load(friendlyMessage.getImageUrl()).apply(RequestOptions.centerCropTransform())
                         .into(viewHolder.incomingMessageImageView);
             }
             viewHolder.incomingMessageImageView.setVisibility(ImageView.VISIBLE);
@@ -785,7 +813,7 @@ public class MainActivity extends AppCompatActivity
                         final int delay = 1000; //milliseconds
                         handler.postDelayed(new Runnable() {
                             public void run() {
-                                checkIsPlaying(viewHolder);
+                                checkIsPlaying(viewHolder, false);
                                 checkIsPrepared(viewHolder, false);
                                 handler.postDelayed(this, delay);
                             }
@@ -797,6 +825,13 @@ public class MainActivity extends AppCompatActivity
             });
 
 
+        }
+        if (friendlyMessage.getImageUrl() == null && friendlyMessage.getAudioUrl() == null && friendlyMessage.getText() == null) {
+
+            viewHolder.incomingAvi.setVisibility(View.VISIBLE);
+            viewHolder.incomingMessageImageView.setVisibility(View.GONE);
+            viewHolder.incomingMessengerTextView.setVisibility(View.GONE);
+            viewHolder.incomingPlayAudioImageView.setVisibility(View.GONE);
         }
     }
 
@@ -888,7 +923,6 @@ public class MainActivity extends AppCompatActivity
     public void onStop() {
         super.onStop();
 
-
 //        if (mPlayer != null) {
 //            mPlayer.release();
 //            mPlayer = null;
@@ -923,8 +957,7 @@ public class MainActivity extends AppCompatActivity
 
                                         putImageInStorage(storageReference, uri, key);
                                     } else {
-                                        Log.w("thisisatag", "Unable to write message to database.",
-                                                databaseError.toException());
+                                        Toast.makeText(MainActivity.this, "error uploading", Toast.LENGTH_SHORT).show();
                                     }
                                 }
                             });
